@@ -4,7 +4,7 @@ from scipy.stats import ks_2samp
 from scipy.stats import wasserstein_distance as was
 
 
-def OUE_geq(num_noisy,epsilon_1,epsilon_2):
+def OUE_F(num_noisy,epsilon_1,epsilon_2): #F function for UE, select OUE as example
 
     p1=1/2
     q1=1/(np.e**epsilon_1+1)
@@ -26,12 +26,12 @@ def OUE_geq(num_noisy,epsilon_1,epsilon_2):
         else:
             return 0
 
-def OUE_leq(num_true,num_noisy,epsilon_1,epsilon_2):
+def OUE_G(num_true,num_noisy,epsilon_1,epsilon_2):#G function for UE, select OUE as example
     p1 = 1 / 2
-    q1 = 1 / (np.e ** epsilon_2 + 1)
+    q1 = 1 / (np.e ** epsilon_1 + 1)
 
     p2 = 1 / 2
-    q2 = 1 / (np.e ** epsilon_1 + 1)
+    q2 = 1 / (np.e ** epsilon_2 + 1)
 
     g1 = ((1 - q1) * (p1 - p1 * q2 + p2 * q1 - q1)) / ((p1 - q1) * (1 - q2))
     g2 = ((1 - p1) * (p1 - p1 * q2 + p2 * q1 - q1)) / ((p1 - q1) * (1 - p2))
@@ -59,19 +59,7 @@ def OUE_leq(num_true,num_noisy,epsilon_1,epsilon_2):
         else:
             return 0
 
-
-
-
-def OUE_reuse(num_true,num_noisy,epsilon_1,epsilon_2):
-
-    if epsilon_1>epsilon_2:
-        return OUE_geq(num_noisy,epsilon_1,epsilon_2)
-    elif epsilon_1<epsilon_2:
-        return OUE_leq(num_true,num_noisy,epsilon_1,epsilon_2)
-    else:
-        return num_noisy
-
-def OUE(num_true,epsilon_1):
+def OUE(num_true,epsilon_1):#OUE
 
     P=1/2
     Q=1/(np.e**epsilon_1+1)
@@ -91,12 +79,11 @@ def OUE(num_true,epsilon_1):
 e1=2
 e2=1
 
-num_true_list=[1 for i in range(6000)]+[0 for i in range(4000)]
-
+num_true_list=[1 for i in range(6000)]+[0 for i in range(4000)]# can be changed to any other
 
 test_time=100
 
-was_22=0
+was_22=0# the meaning of was_22, was_12, p_22, p_12, was_11, was_21, p_11, p_21 can be seen in main.py
 was_12=0
 p_22=0
 p_12=0
@@ -111,8 +98,8 @@ for i in range(test_time):
     list_2 = [OUE(i, e2) for i in num_true_list]
 
 
-    list_12 = [OUE_reuse(num_true_list[i], list_1[i], e1, e2) for i in range(len(num_true_list))]
-    list_21 = [OUE_reuse(num_true_list[i], list_2[i], e2, e1) for i in range(len(num_true_list))]
+    list_12 = [OUE_F(list_1[i], e1, e2) for i in range(len(num_true_list))]
+    list_21 = [OUE_G(num_true_list[i], list_2[i], e1, e2) for i in range(len(num_true_list))]
 
     list_10 = [OUE(i, e1) for i in num_true_list]
     list_20 = [OUE(i, e2) for i in num_true_list]
@@ -138,10 +125,10 @@ for i in range(test_time):
     p_21 += p_value
 
 
-# print(was_22/test_time,"\t",was_12/test_time)
-# print(p_22/test_time,"\t",p_12/test_time)
-#
-# print(was_11/test_time,"\t",was_21/test_time)
-# print(p_11/test_time,"\t",p_21/test_time)
+print(was_22/test_time,"\t",was_12/test_time)
+print(p_22/test_time,"\t",p_12/test_time)
 
-print(was_12/test_time)
+print(was_11/test_time,"\t",was_21/test_time)
+print(p_11/test_time,"\t",p_21/test_time)
+
+#print(was_12/test_time)

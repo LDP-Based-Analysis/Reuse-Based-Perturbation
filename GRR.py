@@ -3,13 +3,13 @@ import numpy as np
 
 from scipy.stats import ks_2samp
 from scipy.stats import wasserstein_distance as was
-def GRR_geq(num_noisy,num_set,epsilon_1,epsilon_2):
+def GRR_F(num_noisy,num_set,epsilon_1,epsilon_2):  # F function for GRR
     k=len(num_set)
+
     P0=np.e**(epsilon_1)/(np.e**(epsilon_1)+k-1)
     P2=np.e**(epsilon_2)/(np.e**(epsilon_2)+k-1)
 
     Q1=((k-1)*P2+P0-1)/(k*P0-1)
-
     Q_2=(1-Q1)/(k-1)
 
     if random.random()<Q1-Q_2:
@@ -18,7 +18,7 @@ def GRR_geq(num_noisy,num_set,epsilon_1,epsilon_2):
         return random.choice(num_set)
 
 
-def GRR_leq(num_noisy,num_true,num_set,essilon_1,epsilon_2):
+def GRR_G(num_noisy,num_true,num_set,essilon_1,epsilon_2): # G function for GRR
     eps1=essilon_1
     eps2=epsilon_2
 
@@ -41,7 +41,7 @@ def GRR_leq(num_noisy,num_true,num_set,essilon_1,epsilon_2):
 
 
 
-def GRR(num_true,num_set,epsilon_1):
+def GRR(num_true,num_set,epsilon_1): #GRR
     k=len(num_set)
 
     P=(np.e**(epsilon_1)-1)/(np.e**epsilon_1+k-1)
@@ -51,19 +51,16 @@ def GRR(num_true,num_set,epsilon_1):
     else:
         return random.choice(num_set)
 
+num_set=[1,2,3]  # can be changed to any other
 
-num_true=[1 for i in range(5000)]+[2 for i in range(3500)]+[3 for i in range(1500)]
-
-num_set=[1,2,3]
-
-e1=0.5
+e1=0.5 # e1 should satisfy that e1 < ln((d-1)/(d-2))
 e2=0.1
 
 length=10000
 
 test_time=100
 
-was_22=0
+was_22=0# the meaning of was_22, was_12, p_22, p_12, was_11, was_21, p_11, p_21 can be seen in main.py
 was_12=0
 p_22=0
 p_12=0
@@ -77,8 +74,8 @@ for i in range(test_time):
     list_1 = [GRR(2, num_set, e1) for i in range(length)]
     list_2 = [GRR(2, num_set, e2) for i in range(length)]
 
-    list_12 = [GRR_geq(i, num_set, e1, e2) for i in list_1]
-    list_21 = [GRR_leq(i, 2, num_set, e1, e2) for i in list_2]
+    list_12 = [GRR_F(i, num_set, e1, e2) for i in list_1]
+    list_21 = [GRR_G(i, 2, num_set, e1, e2) for i in list_2]
 
     list_10 = [GRR(2, num_set, e1) for i in range(length)]
     list_20 = [GRR(2, num_set, e2) for i in range(length)]
