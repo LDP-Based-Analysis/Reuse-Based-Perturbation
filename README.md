@@ -11,3 +11,4 @@ Requirements
 cvxpy==1.6.1
 numpy==2.2.0
 scipy==1.14.1
+pandas==2.2.3
