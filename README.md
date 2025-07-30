@@ -1,4 +1,4 @@
-The experiments related to Q1 and Q3 that illustrates F and G can generate correct distribution and running efficiency can be conducted by
+The experiments related to Q1 and Q3 that illustrates F and G can generate correct distribution and run efficiently can be conducted by
 
 run correctness verification and latency/Matrix_based_framework.py
 
