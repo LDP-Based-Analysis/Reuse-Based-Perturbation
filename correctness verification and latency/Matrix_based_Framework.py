@@ -3,6 +3,9 @@ from scipy.stats import wasserstein_distance as was
 import cvxpy as cp
 from scipy.stats import ks_2samp
 
+import os
+import psutil
+
 import time
 
 
@@ -113,6 +116,66 @@ def releaxed_M_F(M_1, M_2):
 
     return (B_optimal)
 
+
+def relaxed_column(M1, M2):          ### the alternative method solving for approximate M_F
+    n, m = M1.shape
+    _, p = M2.shape
+    B = np.zeros((m, p))
+
+    time_start = time.time()
+    for j in range(p):
+
+        b = cp.Variable(m)
+        objective = cp.Minimize(cp.sum_squares(M1 @ b - M2[:, j]))
+        constraints = [b >= 10**(-5)]
+        prob = cp.Problem(objective, constraints)
+        prob.solve()#solver=cp.OSQP)
+        B[:, j] = b.value
+        time_end = time.time()
+
+        process = psutil.Process(os.getpid())
+        mem_info = process.memory_info()
+        print(f"RSS: {mem_info.rss / 1024 ** 2:.2f} MB")  # 常用物理内存占用
+
+        print(j,time_end-time_start)
+
+
+    # row_sums = B.sum(axis=1, keepdims=True)
+    # B = B / row_sums
+
+    B=projection_on_simplex_rows(B)
+
+    print(np.max(abs(M1@B-M2)))
+
+    # if np.max(abs(M1@B-M2))<= 10**(-3):
+    #     return B
+    #
+    # else:
+    #     print("未能找到满足条件的解。问题状态:")
+    #     return None
+
+    return B
+
+
+def simplex_proj(v):
+    """投影向量 v 到概率单纯形 {x| x>=0, sum(x)=1}"""
+    u = np.sort(v)[::-1]
+    sv = np.cumsum(u)
+    rho_arr = u - (sv - 1) / (np.arange(len(u)) + 1)
+    rho = np.where(rho_arr > 0)[0][-1]
+    theta = (sv[rho] - 1) / (rho + 1)
+    w = np.maximum(v - theta, 0)
+    return w
+
+
+def projection_on_simplex_rows(B):
+    """对矩阵B每一行进行单纯形投影"""
+    B_proj = np.zeros_like(B)
+    for i in range(B.shape[0]):
+        B_proj[i, :] = simplex_proj(B[i, :])
+    return B_proj
+
+
 def G_Matrix(M1,M2,M_transition,x_raw,x_noisy,noise_list):
 
     index=noise_list.index(x_noisy)
@@ -135,6 +198,20 @@ def noise_list(pro_list,repeat_time,domain_list): # SW perturbation to generate 
 
     return new_list
 
+
+def max_ratio_per_column(matrix):
+    ratios = []
+    for col in range(matrix.shape[1]):
+        col_vals = matrix[:, col]
+        # 排除0和负数时根据实际需求定义，若允许负值，可能需要调整
+        # 这里假设所有元素均为正数
+        min_val = np.min(col_vals[col_vals > 0])  # 最小正值
+        max_val = np.max(col_vals)
+        ratio = max_val / min_val if min_val != 0 else np.inf
+        ratios.append(ratio)
+    return np.array(ratios)
+
+
 d=10
 b1=2
 b2=2
@@ -146,19 +223,50 @@ e2=1
 
 repeat_time=10000
 
-M1=matrix_GRR(d,e1)#set the parametter M1 as matrix_UE(e1) or matrix_GRR(d,e1) or matrix_SR(d,e1) or matrix_SW(d,b1,e1)
-M2=matrix_SR(d,e2)# similar to the M2
+M1=matrix_SW(d,b1,e1)#set the parametter M1 as matrix_UE(e1) or matrix_GRR(d,e1) or matrix_SR(d,e1) or matrix_SW(d,b1,e1)
+M2=matrix_SW(d,b2,e2)# similar to the M2
+
+#M1=matrix_GRR(d,e1)# GRR to SR
+#M2=matrix_SR(d,e2)
+
+# M1=matrix_SR(d,3)
+# M2=matrix_SR(d,1)
+
+# M1=matrix_OUE(e1) ##UE to UE
+# M2=matrix_OUE(e2)
+
+
+
+time_1=time.time()
 
 M_T_strict=strict_M_F(M1,M2)
 
-M_T_relax=releaxed_M_F(M1,M2)
+#print(M_T_strict)
 
 if M_T_strict is not None:
     M_T=M_T_strict
-elif M_T_relax is not None:
-    M_T=M_T_relax
+    #print("Exact")
 else:
-    print("M_T does not exist")
+    M_T_relax = releaxed_M_F(M1,M2)
+    #M_T_relax = relaxed_column(M1,M2)##the alternative method solving for M_F
+
+    if M_T_relax is not None:
+        M_T=M_T_relax
+        #print("Approx")
+    else:
+        print("M_T does not exist")
+
+
+time_2=time.time()
+
+print("time:",time_2-time_1)
+
+
+num=(max(max_ratio_per_column(M1@M_T)))
+
+print(abs(np.log(num)-e2))
+
+
 
 # #UE to UE
 # input_domin=[0,1]#UE
@@ -173,9 +281,9 @@ else:
 #
 #
 #SW to SW
-# input_domain=[i for i in range(1,d+1)]#GRR, SR, SW
-# output_domain_e1=[(i - b1 + 1) for i in range(d + 2 * b1)]#SW
-# output_domain_e2=[(i - b2 + 1) for i in range(d + 2 * b2)]#SW
+input_domain=[i for i in range(1,d+1)]#GRR, SR, SW
+output_domain_e1=[(i - b1 + 1) for i in range(d + 2 * b1)]#SW
+output_domain_e2=[(i - b2 + 1) for i in range(d + 2 * b2)]#SW
 #
 #
 # #GRR to SW
@@ -185,9 +293,9 @@ else:
 #
 #
 # #GRR to SR
-input_domain=[i for i in range(1,d+1)]#GRR, SR, SW
-output_domain_e1=[i for i in range(1,d+1)]##GRR
-output_domain_e2=[-1,1]#SR
+# input_domain=[i for i in range(1,d+1)]#GRR, SR, SW
+# output_domain_e1=[i for i in range(1,d+1)]##GRR
+# output_domain_e2=[-1,1]#SR
 
 
 
